@@ -1,0 +1,6 @@
+{
+  "name": "LeadForge AI",
+  "description": "AI-powered Local Business Lead Intelligence Platform for agencies, marketers, and web designers.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

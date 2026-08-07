@@ -1,0 +1,227 @@
+{
+  "entities": {
+    "BusinessLead": {
+      "title": "BusinessLead",
+      "description": "Lead business record stored in CRM or discovered via search",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "industry": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "address": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "city": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "country": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "zip": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "googleRating": {
+          "type": "number"
+        },
+        "reviewCount": {
+          "type": "number"
+        },
+        "opportunityScore": {
+          "type": "number"
+        },
+        "opportunityLevel": {
+          "type": "string",
+          "enum": [
+            "prime",
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "crmStatus": {
+          "type": "string",
+          "enum": [
+            "new",
+            "contacted",
+            "qualified",
+            "proposal",
+            "won",
+            "lost"
+          ]
+        },
+        "dealValue": {
+          "type": "number"
+        },
+        "dateAdded": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "city",
+        "state"
+      ]
+    },
+    "CrmTask": {
+      "title": "CrmTask",
+      "description": "Task item associated with a lead or CRM workflow",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "leadId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "leadName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "dueDate": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "call",
+            "email",
+            "audit",
+            "meeting",
+            "followup"
+          ]
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    },
+    "AutomationSequence": {
+      "title": "AutomationSequence",
+      "description": "Outreach sequence campaign configuration",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "email",
+            "linkedin",
+            "call"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "paused"
+          ]
+        },
+        "triggerEvent": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "stepsCount": {
+          "type": "number"
+        },
+        "leadsEnrolled": {
+          "type": "number"
+        },
+        "openRate": {
+          "type": "number"
+        },
+        "responseRate": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "BusinessLead",
+      "description": "Collection of business leads saved by users"
+    },
+    "/tasks/{taskId}": {
+      "schema": "CrmTask",
+      "description": "CRM task collection"
+    },
+    "/sequences/{sequenceId}": {
+      "schema": "AutomationSequence",
+      "description": "Automation sequence campaigns"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "projectId": "dev-biplane-m2gpt",
+  "appId": "1:679739917705:web:a7223bf8e62e0f8db44d58",
+  "apiKey": "AIzaSyA4Qg0R87rNCmKMzJjVWndEnlATIeJ_kTQ",
+  "authDomain": "dev-biplane-m2gpt.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-leadforgeai-667b8bd4-46a0-4efa-8b67-572bf6789cb0",
+  "storageBucket": "dev-biplane-m2gpt.firebasestorage.app",
+  "messagingSenderId": "679739917705",
+  "measurementId": "",
+  "oAuthClientId": "679739917705-b3vq6231t16nu0oapuve0ke39nhkf6hk.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
+}
