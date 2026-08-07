@@ -16,6 +16,7 @@ import { AdminConsoleView } from './components/AdminConsoleView';
 import { CommandPalette } from './components/CommandPalette';
 
 import { BusinessLead, UserProfile, SearchFilters, CrmStage, AutomationSequence, CrmTask } from './types';
+import { apiClient } from './lib/api/client';
 import { auth, testConnection } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { 
@@ -212,45 +213,21 @@ export default function App() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[] | undefined>(undefined);
   const [activeProviderName, setActiveProviderName] = useState<string>('OpenStreetMap / Google Places API');
   const [dataQualityReport, setDataQualityReport] = useState<any>(null);
+  const [searchError, setSearchError] = useState<{ message: string; endpoint?: string; status?: number } | null>(null);
 
   // Execute Search via Real Business Data Backend API
   const handleExecuteSearch = async (filters: SearchFilters) => {
     setIsSearching(true);
     setSearchSuggestions(undefined);
+    setSearchError(null);
 
     try {
-      const res = await fetch('/api/search-leads', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          industry: filters.industry === 'All Industries' ? 'Local Services' : filters.industry,
-          city: filters.city || 'Austin',
-          state: filters.state || 'TX',
-          country: filters.country || 'United States',
-          radiusKm: filters.radiusKm || 25,
-          keyword: filters.keyword || '',
-          noWebsiteOnly: filters.noWebsiteOnly,
-          noSslOnly: filters.noSslOnly,
-          hasFacebookOnly: filters.hasFacebookOnly,
-          hasInstagramOnly: filters.hasInstagramOnly,
-          minRating: filters.minRating || 0,
-          minReviews: filters.minReviews || 0
-        })
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || `Server search error (${res.status})`);
-      }
-
-      const data = await res.json();
+      const data = await apiClient.searchBusinesses(filters);
 
       const searchResults: BusinessLead[] = data.results || [];
       setLeads(searchResults);
       setActiveProviderName(data.provider || 'Business Data Engine');
-      setDataQualityReport(data.dataQuality || null);
+      setDataQualityReport(data.dataQualityReport || null);
       if (data.suggestions) {
         setSearchSuggestions(data.suggestions);
       }
@@ -272,7 +249,14 @@ export default function App() {
       setActiveView('results');
     } catch (err: any) {
       console.error('Real search execution failed:', err);
-      alert(`Search failed: ${err.message || 'Error communicating with business data provider'}`);
+      let errDetails = { message: err.message || 'Error communicating with business data provider', endpoint: '/api/search', status: 500 };
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.message) errDetails = parsed;
+      } catch (e) {
+        // Fallthrough
+      }
+      setSearchError(errDetails);
     } finally {
       setIsSearching(false);
     }
@@ -337,6 +321,59 @@ export default function App() {
 
         {/* Main Content Workspace */}
         <main className="flex-1 min-w-0 pb-16">
+          {/* Global Search Error Banner */}
+          {searchError && (
+            <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+              <div className="p-5 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-300 space-y-4 shadow-xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className="font-black text-base text-rose-400 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></span>
+                      <span>Search Service Error</span>
+                    </h3>
+                    <p className="text-xs font-semibold text-rose-200">
+                      {searchError.message}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSearchError(null)}
+                    className="text-xs text-rose-400 hover:text-rose-200 font-bold px-2 py-1 rounded-lg bg-rose-500/20"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono space-y-1">
+                  <div className="flex justify-between text-slate-400">
+                    <span>Target Endpoint:</span>
+                    <span className="text-indigo-400 font-bold">{searchError.endpoint || '/api/search'}</span>
+                  </div>
+                  {searchError.status && (
+                    <div className="flex justify-between text-slate-400">
+                      <span>HTTP Status:</span>
+                      <span className="text-amber-400 font-bold">{searchError.status}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-[11px] text-slate-400">
+                    Ensure the backend server is active and the endpoint route is reachable.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchError(null);
+                      setActiveView('search');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition-all shadow-md"
+                  >
+                    Retry Search
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeView === 'dashboard' && (
             <DashboardView
               leads={leads}

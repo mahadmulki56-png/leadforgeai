@@ -1,4 +1,5 @@
 import React from 'react';
+import { apiClient } from '../api/client';
 
 /**
  * Google Maps Verification & Analytics Utilities
@@ -114,11 +115,7 @@ export function trackGoogleMapsOpened(params: {
 
   // Asynchronous beacon to backend
   try {
-    fetch('/api/analytics/event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(() => {});
+    apiClient.trackAnalyticsEvent(payload).catch(() => {});
   } catch (e) {
     // Ignore analytics network errors silently
   }

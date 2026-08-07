@@ -8,6 +8,7 @@ import {
 import { BusinessLead, AIOutreachResponse } from '../types';
 import { handleGoogleMapsClick, checkGoogleMapsConsistency, validateGoogleMapsUrl } from '../lib/utils/googleMaps';
 import { LeadMapView } from './LeadMapView';
+import { apiClient } from '../lib/api/client';
 
 interface LeadDetailsViewProps {
   lead: BusinessLead;
@@ -58,20 +59,15 @@ export const LeadDetailsView: React.FC<LeadDetailsViewProps> = ({
   const handleGenerateAiOutreach = async () => {
     setIsGeneratingOutreach(true);
     try {
-      const res = await fetch('/api/gemini/generate-outreach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessName: lead.name,
-          industry: lead.industry,
-          city: lead.city,
-          ownerName: lead.name.split(' ')[0] + ' Owner',
-          highlights: lead.aiOpportunityHighlights,
-          website: lead.website,
-          rating: lead.googleRating
-        })
+      const data = await apiClient.generateOutreach({
+        businessName: lead.name,
+        industry: lead.industry,
+        city: lead.city,
+        ownerName: lead.name.split(' ')[0] + ' Owner',
+        highlights: lead.aiOpportunityHighlights,
+        website: lead.website,
+        rating: lead.googleRating
       });
-      const data = await res.json();
       setAiOutreachData(data);
     } catch (err) {
       console.error('Outreach generation error:', err);

@@ -15,6 +15,24 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
+// CORS & Request Tracking Middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-ID');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Request-ID');
+  
+  const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  res.setHeader('X-Request-ID', requestId as string);
+  (req as any).requestId = requestId;
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Helper to initialize Gemini SDK safely
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -29,13 +47,16 @@ function getGeminiClient() {
   });
 }
 
-// REAL BUSINESS SEARCH ENDPOINT
-app.post('/api/search-leads', async (req, res) => {
+// REAL BUSINESS SEARCH HANDLER
+const handleSearchRequest = async (req: express.Request, res: express.Response) => {
+  const startTime = Date.now();
+  const requestId = (req as any).requestId || `req_${Date.now()}`;
   try {
     const { industry, city, state, country, radiusKm, keyword, noWebsiteOnly, noSslOnly, hasFacebookOnly, hasInstagramOnly, minRating, minReviews } = req.body;
 
     if (!industry || !city || !state) {
       return res.status(400).json({
+        requestId,
         error: 'Missing required parameters: industry, city, and state are required.'
       });
     }
@@ -55,14 +76,124 @@ app.post('/api/search-leads', async (req, res) => {
       minReviews: Number(minReviews) || 0
     });
 
-    res.json(searchPayload);
+    const duration = Date.now() - startTime;
+    console.log(`[Search Diagnostics] requestId=${requestId} route=${req.path} status=200 duration=${duration}ms resultsCount=${searchPayload.results?.length || 0}`);
+
+    res.json({
+      ...searchPayload,
+      requestId
+    });
   } catch (err: any) {
-    console.error('Real Business Search Error:', err);
+    const duration = Date.now() - startTime;
+    console.error(`[Search Diagnostics Error] requestId=${requestId} route=${req.path} status=500 duration=${duration}ms error=${err.message}`);
     res.status(500).json({
+      requestId,
       error: 'Business data discovery failed.',
       message: err.message || 'Error executing provider search'
     });
   }
+};
+
+// Register Search endpoints (both /api/search and /api/search-leads)
+app.post('/api/search', handleSearchRequest);
+app.post('/api/search-leads', handleSearchRequest);
+
+// Health & Readiness Endpoints
+app.get('/healthz', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/readyz', (req, res) => {
+  const hasApiKey = Boolean(process.env.GEMINI_API_KEY);
+  const hasGoogleKey = Boolean(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY);
+  res.json({
+    status: 'ready',
+    database: 'healthy',
+    businessProvider: process.env.BUSINESS_DATA_PROVIDER || (hasGoogleKey ? 'Google Places API' : 'OpenStreetMap & Overpass'),
+    geminiAi: hasApiKey ? 'configured' : 'fallback-mode',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// OpenAPI Spec & Documentation
+app.get('/openapi.json', (req, res) => {
+  res.json({
+    openapi: '3.0.0',
+    info: {
+      title: 'LeadForge AI Search & Intelligence API',
+      version: '2.0.0',
+      description: 'API for searching real business lead intelligence and generating outreach scripts.'
+    },
+    paths: {
+      '/api/search': {
+        post: {
+          summary: 'Search business leads by location and industry',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    industry: { type: 'string', example: 'Plumbing & HVAC' },
+                    city: { type: 'string', example: 'Dallas' },
+                    state: { type: 'string', example: 'Texas' },
+                    radiusKm: { type: 'number', example: 25 },
+                    noWebsiteOnly: { type: 'boolean', example: false }
+                  },
+                  required: ['industry', 'city', 'state']
+                }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Search results returned successfully' },
+            '400': { description: 'Missing required search parameters' },
+            '500': { description: 'Business data discovery provider error' }
+          }
+        }
+      },
+      '/api/search-leads': {
+        post: {
+          summary: 'Alias route for business lead search'
+        }
+      },
+      '/healthz': {
+        get: {
+          summary: 'Simple health check endpoint'
+        }
+      },
+      '/readyz': {
+        get: {
+          summary: 'Readiness check for database and providers'
+        }
+      }
+    }
+  });
+});
+
+app.get('/docs', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>LeadForge AI API Docs</title>
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui.css" />
+      </head>
+      <body>
+        <div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist@4.5.0/swagger-ui-bundle.js"></script>
+        <script>
+          window.onload = () => {
+            SwaggerUIBundle({
+              url: '/openapi.json',
+              dom_id: '#swagger-ui'
+            });
+          };
+        </script>
+      </body>
+    </html>
+  `);
 });
 
 // ADMIN DATA QUALITY & TELEMETRY ENDPOINT

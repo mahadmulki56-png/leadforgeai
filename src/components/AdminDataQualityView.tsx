@@ -5,6 +5,7 @@ import {
   Layers, BarChart2, Radio, Globe, Search, MapPin, ExternalLink 
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { apiClient } from '../lib/api/client';
 
 interface AdminDataQualityViewProps {
   user: UserProfile;
@@ -18,8 +19,7 @@ export const AdminDataQualityView: React.FC<AdminDataQualityViewProps> = ({ user
 
   const fetchTelemetry = () => {
     setLoading(true);
-    fetch('/api/admin/telemetry')
-      .then(res => res.json())
+    apiClient.getTelemetry()
       .then(data => {
         setTelemetryData(data);
         setLoading(false);
@@ -37,8 +37,7 @@ export const AdminDataQualityView: React.FC<AdminDataQualityViewProps> = ({ user
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetch('/api/admin/telemetry')
-        .then(res => res.json())
+      apiClient.getTelemetry()
         .then(data => setTelemetryData(data))
         .catch(() => {});
     }, 5000);
