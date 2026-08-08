@@ -4,8 +4,25 @@
  */
 
 export const getBaseUrl = (): string => {
-  // Check if explicit environment variable is defined
-  const envUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.NEXT_PUBLIC_API_URL;
+  // Check if explicit environment variable is defined in Vite import.meta or process.env or window
+  const metaEnv = (import.meta as any).env || {};
+  const procEnv = (typeof process !== 'undefined' ? process.env : {}) || {};
+  const winEnv = (typeof window !== 'undefined' ? (window as any).__ENV__ : {}) || {};
+
+  const envUrl =
+    metaEnv.VITE_API_URL ||
+    metaEnv.VITE_BACKEND_URL ||
+    metaEnv.VITE_API_BASE_URL ||
+    metaEnv.NEXT_PUBLIC_API_URL ||
+    metaEnv.NEXT_PUBLIC_BACKEND_URL ||
+    metaEnv.NEXT_PUBLIC_API_BASE_URL ||
+    procEnv.VITE_API_URL ||
+    procEnv.VITE_BACKEND_URL ||
+    procEnv.NEXT_PUBLIC_API_URL ||
+    procEnv.NEXT_PUBLIC_BACKEND_URL ||
+    winEnv.API_URL ||
+    winEnv.BACKEND_URL;
+
   if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
     return envUrl.trim().replace(/\/$/, '');
   }
@@ -14,7 +31,9 @@ export const getBaseUrl = (): string => {
 };
 
 export const API_CONFIG = {
-  baseUrl: getBaseUrl(),
+  get baseUrl(): string {
+    return getBaseUrl();
+  },
   endpoints: {
     health: '/healthz',
     readiness: '/readyz',

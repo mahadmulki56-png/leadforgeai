@@ -17,6 +17,8 @@ import { CommandPalette } from './components/CommandPalette';
 
 import { BusinessLead, UserProfile, SearchFilters, CrmStage, AutomationSequence, CrmTask } from './types';
 import { apiClient } from './lib/api/client';
+import { API_CONFIG } from './lib/api/config';
+import { fetchDebugRoutes, DiagnosticData } from './lib/api/diagnostic';
 import { auth, testConnection } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { 
@@ -213,13 +215,27 @@ export default function App() {
   const [searchSuggestions, setSearchSuggestions] = useState<string[] | undefined>(undefined);
   const [activeProviderName, setActiveProviderName] = useState<string>('OpenStreetMap / Google Places API');
   const [dataQualityReport, setDataQualityReport] = useState<any>(null);
-  const [searchError, setSearchError] = useState<{ message: string; endpoint?: string; status?: number } | null>(null);
+  const [searchError, setSearchError] = useState<{ message: string; endpoint?: string; status?: number; requestUrl?: string; apiBaseUrl?: string } | null>(null);
+  const [diagnosticRoutes, setDiagnosticRoutes] = useState<DiagnosticData | null>(null);
+  const [isLoadingDiagnostic, setIsLoadingDiagnostic] = useState<boolean>(false);
+
+  // Automatically fetch diagnostic routes when a search error is active
+  useEffect(() => {
+    if (searchError && !diagnosticRoutes && !isLoadingDiagnostic) {
+      setIsLoadingDiagnostic(true);
+      fetchDebugRoutes()
+        .then(diag => setDiagnosticRoutes(diag))
+        .catch(dErr => setDiagnosticRoutes({ error: dErr?.message || 'Failed to fetch diagnostic routes' }))
+        .finally(() => setIsLoadingDiagnostic(false));
+    }
+  }, [searchError]);
 
   // Execute Search via Real Business Data Backend API
   const handleExecuteSearch = async (filters: SearchFilters) => {
     setIsSearching(true);
     setSearchSuggestions(undefined);
     setSearchError(null);
+    setDiagnosticRoutes(null);
 
     try {
       const data = await apiClient.searchBusinesses(filters);
@@ -249,14 +265,34 @@ export default function App() {
       setActiveView('results');
     } catch (err: any) {
       console.error('Real search execution failed:', err);
-      let errDetails = { message: err.message || 'Error communicating with business data provider', endpoint: '/api/search', status: 500 };
+      let errDetails: { message: string; endpoint?: string; status?: number; requestUrl?: string; apiBaseUrl?: string } = {
+        message: err.message || 'Error communicating with business data provider',
+        endpoint: '/api/search',
+        status: 500,
+        apiBaseUrl: API_CONFIG.baseUrl,
+        requestUrl: `${API_CONFIG.baseUrl}/api/search`
+      };
       try {
         const parsed = JSON.parse(err.message);
-        if (parsed.message) errDetails = parsed;
+        if (parsed.message) {
+          errDetails = {
+            ...errDetails,
+            ...parsed,
+            apiBaseUrl: parsed.apiBaseUrl || API_CONFIG.baseUrl,
+            requestUrl: parsed.requestUrl || `${API_CONFIG.baseUrl}${parsed.endpoint || '/api/search'}`
+          };
+        }
       } catch (e) {
         // Fallthrough
       }
       setSearchError(errDetails);
+
+      // Automatically fetch diagnostic routes when a 404 or connection error occurs
+      setIsLoadingDiagnostic(true);
+      fetchDebugRoutes()
+        .then(diag => setDiagnosticRoutes(diag))
+        .catch(dErr => setDiagnosticRoutes({ error: dErr?.message || 'Failed to fetch diagnostic routes' }))
+        .finally(() => setIsLoadingDiagnostic(false));
     } finally {
       setIsSearching(false);
     }
@@ -343,16 +379,81 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono space-y-1">
-                  <div className="flex justify-between text-slate-400">
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono space-y-1.5">
+                  <div className="flex justify-between items-center text-slate-400 gap-2">
+                    <span className="shrink-0">API Base URL:</span>
+                    <span className="text-emerald-400 font-bold truncate max-w-[320px]" title={searchError.apiBaseUrl || API_CONFIG.baseUrl || 'relative'}>
+                      {searchError.apiBaseUrl || API_CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'relative')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
                     <span>Target Endpoint:</span>
                     <span className="text-indigo-400 font-bold">{searchError.endpoint || '/api/search'}</span>
                   </div>
                   {searchError.status && (
-                    <div className="flex justify-between text-slate-400">
+                    <div className="flex justify-between items-center text-slate-400">
                       <span>HTTP Status:</span>
                       <span className="text-amber-400 font-bold">{searchError.status}</span>
                     </div>
+                  )}
+                  <div className="flex justify-between items-center text-slate-400 gap-2">
+                    <span className="shrink-0">Full Request URL:</span>
+                    <span className="text-sky-400 font-bold truncate max-w-[320px]" title={searchError.requestUrl || `${API_CONFIG.baseUrl}${searchError.endpoint || '/api/search'}`}>
+                      {searchError.requestUrl || `${API_CONFIG.baseUrl}${searchError.endpoint || '/api/search'}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Diagnostic Registered Routes Section */}
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-indigo-500/20 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5">
+                      <span>🔍 Diagnostic Route Inspector</span>
+                      {isLoadingDiagnostic && <span className="animate-spin text-xs">⏳</span>}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setIsLoadingDiagnostic(true);
+                        fetchDebugRoutes()
+                          .then(diag => setDiagnosticRoutes(diag))
+                          .catch(dErr => setDiagnosticRoutes({ error: dErr?.message || 'Failed' }))
+                          .finally(() => setIsLoadingDiagnostic(false));
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 font-semibold"
+                    >
+                      Refresh Routes
+                    </button>
+                  </div>
+
+                  {isLoadingDiagnostic ? (
+                    <p className="text-[11px] text-slate-400 italic">Querying /debug/routes diagnostic endpoint...</p>
+                  ) : diagnosticRoutes?.error ? (
+                    <p className="text-[11px] text-amber-400 font-mono">
+                      Diagnostic error: {diagnosticRoutes.error}
+                    </p>
+                  ) : diagnosticRoutes?.routes ? (
+                    <div className="space-y-1.5 font-mono text-[11px]">
+                      <div className="text-slate-400 text-[10px] flex gap-3">
+                        <span>Service: <strong className="text-emerald-400">{diagnosticRoutes.service || 'leadforge-api'}</strong></span>
+                        <span>Env: <strong className="text-sky-400">{diagnosticRoutes.environment || 'production'}</strong></span>
+                        <span>Registered Routes: <strong className="text-purple-400">{diagnosticRoutes.totalRoutes ?? diagnosticRoutes.routes.length}</strong></span>
+                      </div>
+                      <div className="max-h-36 overflow-y-auto p-2 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                        {diagnosticRoutes.routes.map((rt, idx) => {
+                          const routePath = Array.isArray(rt.path) ? rt.path.join(', ') : rt.path;
+                          return (
+                            <div key={idx} className="flex items-center justify-between gap-2 border-b border-slate-800/50 pb-0.5 last:border-b-0">
+                              <span className="text-slate-200 font-semibold">{routePath}</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-bold">
+                                {rt.methods ? rt.methods.join(', ') : 'GET'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">Click &quot;Refresh Routes&quot; to inspect active backend endpoints.</p>
                   )}
                 </div>
 

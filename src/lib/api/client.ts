@@ -61,16 +61,18 @@ class ApiClient {
       await this.checkHealth();
     } catch (err: any) {
       this.isServerHealthy = false;
+      let statusCode = 503;
       let msg = 'Backend search service is unreachable. Health check failed.';
       try {
         const parsed = JSON.parse(err.message);
+        if (parsed.status) statusCode = parsed.status;
         if (parsed.message) msg = `Backend health check failed: ${parsed.message}`;
       } catch (e) {
         // Fallthrough
       }
       const healthUrl = this.getEndpointUrl(API_CONFIG.endpoints.health);
       throw new Error(JSON.stringify({
-        status: 503,
+        status: statusCode,
         endpoint: API_CONFIG.endpoints.health,
         requestUrl: healthUrl,
         apiBaseUrl: API_CONFIG.baseUrl,

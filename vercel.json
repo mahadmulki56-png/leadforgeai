@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz"
+    },
+    {
+      "source": "/readyz",
+      "destination": "/api/readyz"
+    },
+    {
+      "source": "/version",
+      "destination": "/api/version"
+    },
+    {
+      "source": "/debug/routes",
+      "destination": "/api/debug/routes"
+    }
+  ]
+}
