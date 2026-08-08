@@ -128,6 +128,35 @@ app.get(['/version', '/api/version'], (req, res) => {
   });
 });
 
+app.get(['/debug/routes', '/api/debug/routes'], (req, res) => {
+  const routes: Array<{ path: string; methods: string[] }> = [];
+  if (app._router && app._router.stack) {
+    app._router.stack.forEach((middleware: any) => {
+      if (middleware.route) {
+        routes.push({
+          path: middleware.route.path,
+          methods: Object.keys(middleware.route.methods).map((m) => m.toUpperCase())
+        });
+      } else if (middleware.name === 'router' && middleware.handle?.stack) {
+        middleware.handle.stack.forEach((handler: any) => {
+          if (handler.route) {
+            routes.push({
+              path: handler.route.path,
+              methods: Object.keys(handler.route.methods).map((m) => m.toUpperCase())
+            });
+          }
+        });
+      }
+    });
+  }
+  res.json({
+    service: 'leadforge-api',
+    environment: process.env.NODE_ENV || 'production',
+    totalRoutes: routes.length,
+    routes
+  });
+});
+
 // OpenAPI Spec & Documentation
 app.get('/openapi.json', (req, res) => {
   res.json({
