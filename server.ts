@@ -98,12 +98,17 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
 app.post('/api/search', handleSearchRequest);
 app.post('/api/search-leads', handleSearchRequest);
 
-// Health & Readiness Endpoints
-app.get('/healthz', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health, Readiness & Diagnostic Endpoints
+app.get(['/healthz', '/api/healthz'], (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'leadforge-api',
+    environment: process.env.NODE_ENV || 'production',
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.get('/readyz', (req, res) => {
+app.get(['/readyz', '/api/readyz'], (req, res) => {
   const hasApiKey = Boolean(process.env.GEMINI_API_KEY);
   const hasGoogleKey = Boolean(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY);
   res.json({
@@ -112,6 +117,14 @@ app.get('/readyz', (req, res) => {
     businessProvider: process.env.BUSINESS_DATA_PROVIDER || (hasGoogleKey ? 'Google Places API' : 'OpenStreetMap & Overpass'),
     geminiAi: hasApiKey ? 'configured' : 'fallback-mode',
     timestamp: new Date().toISOString()
+  });
+});
+
+app.get(['/version', '/api/version'], (req, res) => {
+  res.json({
+    service: 'leadforge-api',
+    environment: process.env.NODE_ENV || 'production',
+    version: '2.0.0'
   });
 });
 

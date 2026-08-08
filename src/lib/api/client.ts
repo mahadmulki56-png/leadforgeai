@@ -19,6 +19,8 @@ export interface SearchApiResponse {
 export interface ApiErrorDetails {
   status?: number;
   endpoint?: string;
+  requestUrl?: string;
+  apiBaseUrl?: string;
   message: string;
   rawError?: any;
 }
@@ -66,9 +68,12 @@ class ApiClient {
       } catch (e) {
         // Fallthrough
       }
+      const healthUrl = this.getEndpointUrl(API_CONFIG.endpoints.health);
       throw new Error(JSON.stringify({
         status: 503,
         endpoint: API_CONFIG.endpoints.health,
+        requestUrl: healthUrl,
+        apiBaseUrl: API_CONFIG.baseUrl,
         message: msg
       }));
     }
@@ -100,6 +105,8 @@ class ApiClient {
         const errorObj: ApiErrorDetails = {
           status: response.status,
           endpoint,
+          requestUrl: url,
+          apiBaseUrl: API_CONFIG.baseUrl,
           message: errorMessage,
           rawError: errorData
         };
@@ -119,6 +126,8 @@ class ApiClient {
 
       const fallbackError: ApiErrorDetails = {
         endpoint,
+        requestUrl: url,
+        apiBaseUrl: API_CONFIG.baseUrl,
         message: err.message || 'Network request failed'
       };
       throw new Error(JSON.stringify(fallbackError));
