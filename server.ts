@@ -99,16 +99,19 @@ app.post('/api/search', handleSearchRequest);
 app.post('/api/search-leads', handleSearchRequest);
 
 // Health, Readiness & Diagnostic Endpoints
-app.get(['/healthz', '/api/healthz'], (req, res) => {
+const handleHealthCheck = (req: express.Request, res: express.Response) => {
   res.json({
     status: 'ok',
     service: 'leadforge-api',
     environment: process.env.NODE_ENV || 'production',
     timestamp: new Date().toISOString()
   });
-});
+};
 
-app.get(['/readyz', '/api/readyz'], (req, res) => {
+app.get('/healthz', handleHealthCheck);
+app.get('/api/healthz', handleHealthCheck);
+
+const handleReadinessCheck = (req: express.Request, res: express.Response) => {
   const hasApiKey = Boolean(process.env.GEMINI_API_KEY);
   const hasGoogleKey = Boolean(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY);
   res.json({
@@ -118,30 +121,38 @@ app.get(['/readyz', '/api/readyz'], (req, res) => {
     geminiAi: hasApiKey ? 'configured' : 'fallback-mode',
     timestamp: new Date().toISOString()
   });
-});
+};
 
-app.get(['/version', '/api/version'], (req, res) => {
+app.get('/readyz', handleReadinessCheck);
+app.get('/api/readyz', handleReadinessCheck);
+
+const handleVersionCheck = (req: express.Request, res: express.Response) => {
   res.json({
     service: 'leadforge-api',
     environment: process.env.NODE_ENV || 'production',
     version: '2.0.0'
   });
-});
+};
 
-app.get(['/debug/routes', '/api/debug/routes'], (req, res) => {
+app.get('/version', handleVersionCheck);
+app.get('/api/version', handleVersionCheck);
+
+const handleDebugRoutes = (req: express.Request, res: express.Response) => {
   const routes: Array<{ path: string; methods: string[] }> = [];
   if (app._router && app._router.stack) {
     app._router.stack.forEach((middleware: any) => {
       if (middleware.route) {
+        const p = Array.isArray(middleware.route.path) ? middleware.route.path.join(', ') : middleware.route.path;
         routes.push({
-          path: middleware.route.path,
+          path: p,
           methods: Object.keys(middleware.route.methods).map((m) => m.toUpperCase())
         });
       } else if (middleware.name === 'router' && middleware.handle?.stack) {
         middleware.handle.stack.forEach((handler: any) => {
           if (handler.route) {
+            const p = Array.isArray(handler.route.path) ? handler.route.path.join(', ') : handler.route.path;
             routes.push({
-              path: handler.route.path,
+              path: p,
               methods: Object.keys(handler.route.methods).map((m) => m.toUpperCase())
             });
           }
@@ -155,7 +166,10 @@ app.get(['/debug/routes', '/api/debug/routes'], (req, res) => {
     totalRoutes: routes.length,
     routes
   });
-});
+};
+
+app.get('/debug/routes', handleDebugRoutes);
+app.get('/api/debug/routes', handleDebugRoutes);
 
 // OpenAPI Spec & Documentation
 app.get('/openapi.json', (req, res) => {

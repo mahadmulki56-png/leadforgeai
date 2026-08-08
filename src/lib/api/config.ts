@@ -28,7 +28,7 @@ export const getBaseUrl = (): string => {
   }
 
   // Detect if running on Vercel frontend without explicit backend API URL
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+  if (typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel'))) {
     throw new Error(
       'NEXT_PUBLIC_API_URL is not configured on Vercel. Please set NEXT_PUBLIC_API_URL in Vercel environment variables to point to your deployed LeadForge backend URL (e.g., https://your-backend-api.run.app).'
     );
@@ -57,7 +57,14 @@ export const API_CONFIG = {
  * Constructs a fully normalized URL without duplicate path segments or trailing slashes
  */
 export const buildApiUrl = (endpoint: string): string => {
-  const baseUrl = getBaseUrl();
+  let baseUrl = '';
+  try {
+    baseUrl = getBaseUrl();
+  } catch (err) {
+    // If getBaseUrl throws (e.g. missing NEXT_PUBLIC_API_URL on Vercel), preserve endpoint
+    baseUrl = '';
+  }
+
   let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
   // Prevent duplicate /api/api/ path issues if baseUrl ends with /api

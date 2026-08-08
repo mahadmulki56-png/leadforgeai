@@ -37,15 +37,32 @@ class ApiClient {
   }
 
   /**
-   * Verify server health via /healthz endpoint
+   * Verify server health via /healthz or /api/healthz endpoint
    */
   async checkHealth(): Promise<any> {
-    const data = await this.request<any>(API_CONFIG.endpoints.health, { method: 'GET' });
-    if (data && (data.status === 'ok' || data.status === 'healthy')) {
-      this.isServerHealthy = true;
-      this.lastHealthCheckTime = Date.now();
+    try {
+      const data = await this.request<any>(API_CONFIG.endpoints.health, { method: 'GET' });
+      if (data && (data.status === 'ok' || data.status === 'healthy')) {
+        this.isServerHealthy = true;
+        this.lastHealthCheckTime = Date.now();
+        return data;
+      }
+    } catch (err: any) {
+      // If /healthz fails, try /api/healthz as fallback
+      if (API_CONFIG.endpoints.health === '/healthz') {
+        try {
+          const fallbackData = await this.request<any>('/api/healthz', { method: 'GET' });
+          if (fallbackData && (fallbackData.status === 'ok' || fallbackData.status === 'healthy')) {
+            this.isServerHealthy = true;
+            this.lastHealthCheckTime = Date.now();
+            return fallbackData;
+          }
+        } catch (fErr) {
+          // Rethrow original error if fallback also fails
+        }
+      }
+      throw err;
     }
-    return data;
   }
 
   /**
@@ -58,24 +75,44 @@ class ApiClient {
     }
 
     try {
+      // Access baseUrl to trigger configuration validation check if present
+      const baseUrl = API_CONFIG.baseUrl;
       await this.checkHealth();
     } catch (err: any) {
       this.isServerHealthy = false;
       let statusCode = 503;
       let msg = 'Backend search service is unreachable. Health check failed.';
+      
+      let rawMessage = err.message || '';
       try {
         const parsed = JSON.parse(err.message);
         if (parsed.status) statusCode = parsed.status;
-        if (parsed.message) msg = `Backend health check failed: ${parsed.message}`;
+        if (parsed.message) rawMessage = parsed.message;
       } catch (e) {
         // Fallthrough
       }
+
+      if (rawMessage.includes('NEXT_PUBLIC_API_URL is not configured')) {
+        msg = rawMessage;
+      } else if (rawMessage.includes('HTTP 404')) {
+        msg = `Backend health check failed (HTTP 404 at ${this.getEndpointUrl(API_CONFIG.endpoints.health)}). The frontend is attempting to query its own origin because NEXT_PUBLIC_API_URL is missing or not pointing to a deployed API server.`;
+      } else if (rawMessage) {
+        msg = `Backend health check failed: ${rawMessage}`;
+      }
+
+      let activeBaseUrl = '';
+      try {
+        activeBaseUrl = API_CONFIG.baseUrl;
+      } catch (e) {
+        activeBaseUrl = 'UNCONFIGURED (NEXT_PUBLIC_API_URL missing)';
+      }
+
       const healthUrl = this.getEndpointUrl(API_CONFIG.endpoints.health);
       throw new Error(JSON.stringify({
         status: statusCode,
         endpoint: API_CONFIG.endpoints.health,
         requestUrl: healthUrl,
-        apiBaseUrl: API_CONFIG.baseUrl,
+        apiBaseUrl: activeBaseUrl,
         message: msg
       }));
     }

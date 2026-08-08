@@ -17,7 +17,7 @@ import { CommandPalette } from './components/CommandPalette';
 
 import { BusinessLead, UserProfile, SearchFilters, CrmStage, AutomationSequence, CrmTask } from './types';
 import { apiClient } from './lib/api/client';
-import { API_CONFIG } from './lib/api/config';
+import { API_CONFIG, buildApiUrl } from './lib/api/config';
 import { fetchDebugRoutes, DiagnosticData } from './lib/api/diagnostic';
 import { auth, testConnection } from './lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -382,13 +382,21 @@ export default function App() {
                 <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] font-mono space-y-1.5">
                   <div className="flex justify-between items-center text-slate-400 gap-2">
                     <span className="shrink-0">API Base URL:</span>
-                    <span className="text-emerald-400 font-bold truncate max-w-[320px]" title={searchError.apiBaseUrl || API_CONFIG.baseUrl || 'relative'}>
-                      {searchError.apiBaseUrl || API_CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'relative')}
+                    <span className="text-emerald-400 font-bold truncate max-w-[320px]" title={(() => { try { return searchError.apiBaseUrl || API_CONFIG.baseUrl || 'relative'; } catch(e) { return 'UNCONFIGURED'; } })()}>
+                      {(() => { try { return searchError.apiBaseUrl || API_CONFIG.baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'relative'); } catch(e) { return 'UNCONFIGURED (NEXT_PUBLIC_API_URL missing)'; } })()}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>Target Endpoint:</span>
-                    <span className="text-indigo-400 font-bold">{searchError.endpoint || '/api/search'}</span>
+                  <div className="flex justify-between items-center text-slate-400 gap-2">
+                    <span className="shrink-0">Health Request:</span>
+                    <span className="text-indigo-400 font-bold truncate max-w-[320px]" title={searchError.requestUrl || buildApiUrl('/healthz')}>
+                      {buildApiUrl('/healthz')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400 gap-2">
+                    <span className="shrink-0">Search Request:</span>
+                    <span className="text-sky-400 font-bold truncate max-w-[320px]" title={buildApiUrl('/api/search')}>
+                      {buildApiUrl('/api/search')}
+                    </span>
                   </div>
                   {searchError.status && (
                     <div className="flex justify-between items-center text-slate-400">
@@ -398,8 +406,8 @@ export default function App() {
                   )}
                   <div className="flex justify-between items-center text-slate-400 gap-2">
                     <span className="shrink-0">Full Request URL:</span>
-                    <span className="text-sky-400 font-bold truncate max-w-[320px]" title={searchError.requestUrl || `${API_CONFIG.baseUrl}${searchError.endpoint || '/api/search'}`}>
-                      {searchError.requestUrl || `${API_CONFIG.baseUrl}${searchError.endpoint || '/api/search'}`}
+                    <span className="text-sky-300 font-bold truncate max-w-[320px]" title={searchError.requestUrl || buildApiUrl('/api/search')}>
+                      {searchError.requestUrl || buildApiUrl('/api/search')}
                     </span>
                   </div>
                 </div>

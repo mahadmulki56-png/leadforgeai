@@ -5,6 +5,10 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    define: {
+      'process.env.NEXT_PUBLIC_API_URL': JSON.stringify(process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_URL || ''),
+      'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL || ''),
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
