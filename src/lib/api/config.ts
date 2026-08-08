@@ -26,7 +26,15 @@ export const getBaseUrl = (): string => {
   if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
     return envUrl.trim().replace(/\/$/, '');
   }
-  // Default to relative root for unified full-stack architecture
+
+  // Detect if running on Vercel frontend without explicit backend API URL
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    throw new Error(
+      'NEXT_PUBLIC_API_URL is not configured on Vercel. Please set NEXT_PUBLIC_API_URL in Vercel environment variables to point to your deployed LeadForge backend URL (e.g., https://your-backend-api.run.app).'
+    );
+  }
+
+  // Default to relative root for unified full-stack architecture (local dev & Cloud Run container)
   return '';
 };
 
